@@ -167,7 +167,9 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--focus);outline-
 .tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--seal)}
 .sync{margin-left:auto;font-size:.75rem;color:var(--muted);display:flex;align-items:center;gap:6px;min-width:0;text-align:right;line-height:1.3}
 .sync i{flex:none}
-@media (max-width:480px){.tab{padding:8px 10px 9px}}
+@media (max-width:480px){.tab{padding:8px 9px 9px}}
+@media (max-width:440px){#syncText{display:none}}
+.sec-h{flex-wrap:wrap}
 .sync i{width:7px;height:7px;border-radius:50%;background:var(--muted);display:inline-block}
 .sync.on i{background:var(--ok)}
 .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
@@ -234,6 +236,17 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--focus);outline-
 .masked .nrow.show .hid{background:none;color:inherit}
 .masked .nrow .x .hid{color:transparent}
 .masked .nrow.show .x .hid{color:var(--muted)}
+.dctl{display:flex;flex-direction:column;gap:12px}
+.dctl .row{display:flex;gap:8px 10px;flex-wrap:wrap;align-items:center}
+.dlist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.drow{display:grid;grid-template-columns:2.6rem 1fr 3.4rem;gap:12px;align-items:center;padding:9px 0;border-bottom:1px solid var(--rule);width:100%;background:none;border-left:none;border-right:none;border-top:none;text-align:left;color:inherit;font:inherit}
+.dlist li:last-child .drow{border-bottom:none}
+.drow .i{font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums;text-align:right}
+.drow .h{font-family:var(--f-han);font-weight:700;font-size:1.15rem;line-height:1.35}
+.drow .a{width:3.2rem;height:3.2rem;display:grid;place-items:center;border:1.5px dashed var(--rule);border-radius:6px;font-family:var(--f-han);font-size:2.1rem;line-height:1;color:transparent;position:relative}
+.drow .a small{position:absolute;bottom:-1px;right:2px;font-family:var(--f-ui);font-size:.55rem;color:transparent}
+.dlist.reveal .drow .a, .drow.show .a{color:var(--ink);border-style:solid;border-color:var(--ink)}
+.dlist.reveal .drow .a small, .drow.show .a small{color:var(--muted)}
 .ghead{font-size:.75rem;font-weight:700;letter-spacing:.06em;color:var(--muted);padding:12px 0 2px;border-bottom:1.5px solid var(--ink)}
 .weak>span{display:inline-flex;align-items:baseline;gap:4px;border:1px solid var(--rule);border-radius:6px;padding:4px 8px;background:var(--sheet)}
 .weak .han{font-size:1.3rem}
@@ -285,6 +298,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--focus);outline-
     <button class="tab" role="tab" id="tabTest" aria-selected="true">시험</button>
     <button class="tab" role="tab" id="tabRec" aria-selected="false">기록</button>
     <button class="tab" role="tab" id="tabNote" aria-selected="false">오답노트</button>
+    <button class="tab" role="tab" id="tabDict" aria-selected="false">받아쓰기</button>
     <span class="sync" id="sync"><i></i><span id="syncText">기록 불러오는 중</span></span>
   </nav>
 
@@ -346,6 +360,9 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--focus);outline-
 
   <!-- WRONG NOTE -->
   <section id="note" hidden style="display:flex;flex-direction:column;gap:16px"></section>
+
+  <!-- DICTATION: 훈음 보고 종이에 쓰기 -->
+  <section id="dict" hidden style="display:flex;flex-direction:column;gap:16px"></section>
 
   <!-- RESULT -->
   <section id="result" hidden style="display:flex;flex-direction:column;gap:16px"></section>
@@ -992,7 +1009,7 @@ function startQuiz(plan, label){
   if (!plan.length){ $('startMsg').hidden=false; $('startMsg').textContent='고른 범위와 유형으로 만들 수 있는 문제가 없습니다. 독음·동음이의어·사자성어·약자·장단음과 성부·모양 변별·백지 복원 등은 해당 자료가 있는 글자에서만 나오니, 유형을 더 고르거나 범위를 넓혀 보세요.'; return; }
   $('startMsg').hidden=true;
   quiz={qs:plan, i:0, res:[], label};
-  $('setup').hidden=true; $('result').hidden=true; $('records').hidden=true; $('note').hidden=true; $('quiz').hidden=false;
+  $('setup').hidden=true; $('result').hidden=true; $('records').hidden=true; $('note').hidden=true; $('dict').hidden=true; $('quiz').hidden=false;
   showQ();
   window.scrollTo({top:0});
 }
@@ -1176,15 +1193,16 @@ function backToSetup(){ quiz=null; $('quiz').hidden=true; $('result').hidden=tru
 
 /* ---------- tabs ---------- */
 function showTab(which){
-  for (const [k,id] of [['test','tabTest'],['rec','tabRec'],['note','tabNote']]) $(id).setAttribute('aria-selected', String(k===which));
-  $('records').hidden = which!=='rec'; $('note').hidden = which!=='note';
-  if (which!=='test'){ $('setup').hidden=true; $('quiz').hidden=true; $('result').hidden=true; if(which==='rec') renderRecords(); else renderNote(); }
+  for (const [k,id] of [['test','tabTest'],['rec','tabRec'],['note','tabNote'],['dict','tabDict']]) $(id).setAttribute('aria-selected', String(k===which));
+  $('records').hidden = which!=='rec'; $('note').hidden = which!=='note'; $('dict').hidden = which!=='dict';
+  if (which!=='test'){ $('setup').hidden=true; $('quiz').hidden=true; $('result').hidden=true; if(which==='rec') renderRecords(); else if(which==='note') renderNote(); else renderDict(); }
   else { $('result').hidden=true; if(quiz && !quiz.saved){ $('quiz').hidden=false; } else { quiz=null; $('quiz').hidden=true; $('setup').hidden=false; updatePreview(); } }
   window.scrollTo({top:0});
 }
 $('tabTest').addEventListener('click',()=>showTab('test'));
 $('tabRec').addEventListener('click',()=>showTab('rec'));
 $('tabNote').addEventListener('click',()=>showTab('note'));
+$('tabDict').addEventListener('click',()=>showTab('dict'));
 $('noteOpen').addEventListener('click',()=>showTab('note'));
 
 /* ---------- records ---------- */
@@ -1392,6 +1410,48 @@ h2{font-size:12pt;margin:0 0 8px;border-bottom:2px solid #1b2220;padding-bottom:
 <table><thead><tr><th>번호</th><th>한자</th><th>훈·음</th><th>장단</th><th>부수</th><th>예시어</th><th>틀림 · 최근 오답</th></tr></thead><tbody>${rows}</tbody></table>
 <section class="quiz"><h2>확인 시험 — 훈과 음을 쓰시오</h2><p class="tip">앞 장을 가리고 빈칸에 훈·음을 쓴 뒤 맞춰 보세요.</p><div class="qgrid">${quizRows}</div></section>
 </body></html>`;
+}
+
+/* ---------- 받아쓰기: 훈음만 보여 주고 종이에 한자 쓰기 ---------- */
+const DS = Object.assign({from:0, to:0, order:'num', ans:false}, store.get('hj2-dict',{}));
+let DORD = null, DKEY = '';
+function dictOrder(){
+  const a=clampN(DS.from||S.from), b=clampN(DS.to||S.to), lo=Math.min(a,b), hi=Math.max(a,b);
+  const key=`${lo}-${hi}-${DS.order}`;
+  if (!DORD || key!==DKEY){ const xs=ALL.slice(lo-1,hi); DORD = DS.order==='rand' ? shuffle(xs) : xs; DKEY=key; }
+  return {lo, hi, xs:DORD};
+}
+function clampN(v){ v=parseInt(v,10); return isNaN(v)?1:Math.max(1,Math.min(2355,v)); }
+function renderDict(){
+  const {lo,hi}=dictOrder();
+  $('dict').innerHTML = `
+  <div class="sheet dctl">
+    <div class="sec-h"><h2>훈음 보고 한자 쓰기</h2><span class="sub">훈음만 보고 종이에 써 보세요</span></div>
+    <div class="range">
+      <label class="num"><span class="label">시작 번호</span><input id="dFrom" type="number" inputmode="numeric" min="1" max="2355" value="${lo}"></label>
+      <span class="dash">–</span>
+      <label class="num"><span class="label">끝 번호</span><input id="dTo" type="number" inputmode="numeric" min="1" max="2355" value="${hi}"></label>
+    </div>
+    <div class="row"><span class="label">순서</span><button class="chip" data-v="num">번호순</button><button class="chip" data-v="rand">무작위</button><button class="mini" id="dShuf">다시 섞기</button></div>
+    <div class="row"><label class="toggle"><input type="checkbox" id="dAns" ${DS.ans?'checked':''}> 정답 한자 모두 보기</label><span class="note">한 줄만 확인하려면 그 줄을 누르세요.</span></div>
+  </div>
+  <div class="sheet" id="dbody"></div>`;
+  const save=()=>store.set('hj2-dict',DS);
+  const setRange=()=>{ DS.from=clampN($('dFrom').value); DS.to=clampN($('dTo').value); save(); dictList(); };
+  for (const id of ['dFrom','dTo']){ $(id).addEventListener('change',setRange); $(id).addEventListener('keydown',e=>{ if(e.key==='Enter') setRange(); }); }
+  $('dict').querySelectorAll('.chip[data-v]').forEach(b=>b.addEventListener('click',()=>{ DS.order=b.dataset.v; save(); dictList(); }));
+  $('dShuf').addEventListener('click',()=>{ DORD=null; dictList(); });
+  $('dAns').addEventListener('change',()=>{ DS.ans=$('dAns').checked; save(); $('dlist').classList.toggle('reveal',DS.ans); $('dlist').querySelectorAll('.drow.show').forEach(r=>r.classList.remove('show')); });
+  dictList();
+}
+function dictList(){
+  const {lo,hi,xs}=dictOrder();
+  $('dict').querySelectorAll('.chip[data-v]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.v===DS.order)));
+  $('dShuf').hidden = DS.order!=='rand';
+  $('dbody').innerHTML = `<div class="sec-h"><h2>${lo}–${hi}번</h2><span class="sub">${xs.length}자 · ${DS.order==='rand'?'무작위':'번호순'}</span></div>
+    ${hi>1817?'<p class="note">1818번 이후 2급 신출자는 실제 시험에서 쓰기 문제로 나오지 않습니다(읽기 전용).</p>':''}
+    <ol class="dlist ${DS.ans?'reveal':''}" id="dlist">${xs.map((c,i)=>`<li><button class="drow" type="button"><span class="i">${i+1}</span><span class="h">${esc(c.hun.replace(/ \/ /g,' · '))}</span><span class="a">${esc(c.h)}<small>${c.n}</small></span></button></li>`).join('')}</ol>`;
+  $('dlist').addEventListener('click',e=>{ const r=e.target.closest('.drow'); if(r) r.classList.toggle('show'); });
 }
 
 renderSetup();
