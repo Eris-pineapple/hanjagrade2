@@ -1,8 +1,8 @@
 // 2급 한자 암기테스트 — 오프라인 캐시
 // 앱 내용을 고친 뒤에는 아래 버전 숫자를 하나 올려 주세요.
-const VERSION = 'hanja2-v3';
+const VERSION = 'hanja2-v4';
 const CORE = [
-  './', './index.html', './manifest.webmanifest',
+  './', './index.html', './defs.json', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png',
   './icons/maskable-192.png', './icons/maskable-512.png',
   './icons/apple-touch-icon.png', './icons/favicon-32.png', './icons/favicon-48.png'

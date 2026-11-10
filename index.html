@@ -247,6 +247,21 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--focus);outline-
 .drow .a small{position:absolute;bottom:-1px;right:2px;font-family:var(--f-ui);font-size:.55rem;color:transparent}
 .dlist.reveal .drow .a, .drow.show .a{color:var(--ink);border-style:solid;border-color:var(--ink)}
 .dlist.reveal .drow .a small, .drow.show .a small{color:var(--muted)}
+.exs .han,.nex .han,.zlist .han,.witem .l2 .han,.hist .han{cursor:pointer;text-decoration:underline dotted var(--muted);text-decoration-thickness:1px;text-underline-offset:4px}
+.label .han{cursor:auto;text-decoration:none}
+.wback{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.18)}
+.wpop{position:fixed;left:0;right:0;bottom:0;z-index:41;display:flex;justify-content:center;padding:0 10px max(10px,env(safe-area-inset-bottom,0px))}
+.wpop .card{width:100%;max-width:560px;max-height:62vh;overflow:auto;background:var(--sheet);border:1px solid var(--rule);border-radius:14px 14px 10px 10px;box-shadow:0 -8px 30px rgba(0,0,0,.2);padding:16px 18px 14px;display:flex;flex-direction:column;gap:10px}
+.wpop .top{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.wpop .top .w{font-family:var(--f-han);font-size:1.9rem;font-weight:700;line-height:1.1}
+.wpop .top .r{font-size:1.05rem;color:var(--muted);letter-spacing:.06em}
+.wpop .top .x{margin-left:auto;background:none;border:none;font-size:1.4rem;line-height:1;color:var(--muted);padding:2px 6px}
+.wpop ol{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:6px;font-size:.95rem;line-height:1.5}
+.wpop .chars{display:flex;flex-wrap:wrap;gap:6px}
+.wpop .chars span{border:1px solid var(--rule);border-radius:6px;padding:3px 8px;font-size:.85rem;background:var(--paper)}
+.wpop .chars .han{font-size:1.15rem;margin-right:4px}
+.wpop .chars small{color:var(--muted);margin-left:4px;font-size:.7rem}
+.wpop .src2{font-size:.7rem;color:var(--muted)}
 .ghead{font-size:.75rem;font-weight:700;letter-spacing:.06em;color:var(--muted);padding:12px 0 2px;border-bottom:1.5px solid var(--ink)}
 .weak>span{display:inline-flex;align-items:baseline;gap:4px;border:1px solid var(--rule);border-radius:6px;padding:4px 8px;background:var(--sheet)}
 .weak .han{font-size:1.3rem}
@@ -363,6 +378,10 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--focus);outline-
 
   <!-- DICTATION: 훈음 보고 종이에 쓰기 -->
   <section id="dict" hidden style="display:flex;flex-direction:column;gap:16px"></section>
+
+  <!-- 단어 뜻풀이 -->
+  <div class="wback" id="wback" hidden></div>
+  <div class="wpop" id="wpop" hidden role="dialog" aria-modal="true" aria-label="단어 뜻풀이"><div class="card" id="wcard"></div></div>
 
   <!-- RESULT -->
   <section id="result" hidden style="display:flex;flex-direction:column;gap:16px"></section>
@@ -1453,6 +1472,47 @@ function dictList(){
     <ol class="dlist ${DS.ans?'reveal':''}" id="dlist">${xs.map((c,i)=>`<li><button class="drow" type="button"><span class="i">${i+1}</span><span class="h">${esc(c.hun.replace(/ \/ /g,' · '))}</span><span class="a">${esc(c.h)}<small>${c.n}</small></span></button></li>`).join('')}</ol>`;
   $('dlist').addEventListener('click',e=>{ const r=e.target.closest('.drow'); if(r) r.classList.toggle('show'); });
 }
+
+/* ---------- 단어 뜻풀이: 표준국어대사전(국립국어원, CC BY-SA 2.0 KR) ---------- */
+let DEFS=null, DEFP=null;
+function loadDefs(){
+  if (DEFS) return Promise.resolve(DEFS);
+  if (!DEFP) DEFP = fetch('defs.json').then(r=>{ if(!r.ok) throw new Error('http '+r.status); return r.json(); }).then(j=>(DEFS=j)).catch(e=>{ DEFP=null; throw e; });
+  return DEFP;
+}
+const WMAP = new Map();
+for (const c of ALL) for (const e of c.ex.concat(c.exg, c.exx)) if(!WMAP.has(e.w)) WMAP.set(e.w,e);
+function wordInfo(w){
+  const e=WMAP.get(w); if(e) return e;
+  return {w, r:[...w].map(ch=>{ const x=BYH.get(ch); return x?x.eums[0]:'?'; }).join('')};
+}
+function charChips(w){
+  return [...w].map(ch=>{ const x=BYH.get(ch); return x?`<span><span class="han">${esc(ch)}</span>${esc(x.hun.replace(/ \/ /g,' · '))}<small>${x.n}번</small></span>`:`<span><span class="han">${esc(ch)}</span>배정한자 밖</span>`; }).join('');
+}
+function closeWord(){ $('wpop').hidden=true; $('wback').hidden=true; }
+function openWord(w){
+  const e=wordInfo(w), single=[...w].length===1, x=single?BYH.get(w):null;
+  const head=`<div class="top"><span class="w">${esc(w)}</span><span class="r">${single&&x?esc(x.hun.replace(/ \/ /g,' · ')):esc(e.r)}</span>${e.gr?`<small class="src g">기출 ${esc(e.gr)}회</small>`:e.src==='x'?'<small class="src">사전 보충</small>':''}<button class="x" id="wclose" aria-label="닫기">×</button></div>`;
+  const render=body=>{ $('wcard').innerHTML = head + body + (single?'':`<div class="chars">${charChips(w)}</div><div class="src2">뜻풀이 출처: 표준국어대사전(국립국어원) · CC BY-SA 2.0 KR</div>`); $('wclose').addEventListener('click',closeWord); };
+  $('wpop').hidden=false; $('wback').hidden=false;
+  if (single){ render(x?`<div class="chars">${charChips(w)}</div><p class="note">${esc(x.g)} · 부수 ${esc(radText(x))} · ${x.st}획${Object.keys(x.jd).length?' · 장단 '+esc(jdText(x)):''}</p>`:'<p class="note">배정한자 밖 글자입니다.</p>'); return; }
+  render('<p class="note">뜻풀이 불러오는 중…</p>');
+  loadDefs().then(DF=>{
+    if ($('wpop').hidden) return;
+    const d=DF[w];
+    if (!d || !d.length){ render('<p class="note">표준국어대사전에 이 한자 표기로 실린 단어가 없습니다. 아래 글자 풀이를 참고하세요.</p>'); return; }
+    const alt = d[0][0]==='@' ? d[0].slice(1) : null, ss = alt ? d.slice(1) : d;
+    render(`${alt?`<p class="note">사전 표기: <span class="han" style="color:var(--ink)">${esc(alt)}</span></p>`:''}<ol>${ss.map(t=>`<li>${esc(t)}</li>`).join('')}</ol>`);
+  }).catch(()=>{ if(!$('wpop').hidden) render('<p class="note">뜻풀이를 불러오지 못했습니다. 인터넷 연결을 확인한 뒤 다시 눌러 주세요.</p>'); });
+}
+document.addEventListener('click',ev=>{
+  const h=ev.target.closest('.exs .han, .nex .han, .zlist .han, .witem .l2 .han, .hist .han');
+  if (!h || h.closest('.label') || h.closest('#wpop')) return;
+  const w=h.textContent.trim(); if(!w || ![...w].every(ch=>/\p{Script=Han}/u.test(ch))) return;
+  ev.preventDefault(); ev.stopPropagation(); openWord(w);
+}, true);
+$('wback').addEventListener('click',closeWord);
+document.addEventListener('keydown',ev=>{ if(ev.key==='Escape' && !$('wpop').hidden){ ev.stopPropagation(); closeWord(); } }, true);
 
 renderSetup();
 initRemote();
