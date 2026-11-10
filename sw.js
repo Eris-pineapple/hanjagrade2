@@ -1,6 +1,6 @@
 // 2급 한자 암기테스트 — 오프라인 캐시
 // 앱 내용을 고친 뒤에는 아래 버전 숫자를 하나 올려 주세요.
-const VERSION = 'hanja2-v4';
+const VERSION = 'hanja2-v5';
 const CORE = [
   './', './index.html', './defs.json', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png',
@@ -24,6 +24,9 @@ self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
+
+  // 계정 서버(/api)는 저장하지 않고 항상 인터넷으로
+  if (url.origin === location.origin && url.pathname.startsWith('/api/')) return;
 
   // 페이지: 인터넷이 되면 최신 버전, 안 되면 저장된 버전
   if (req.mode === 'navigate') {
